@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Boxes, CircleHelp, LayoutDashboard, MapPin, Package, Warehouse } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Boxes, CircleHelp, LayoutDashboard, LogOut, MapPin, Package } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   Sidebar,
@@ -17,6 +21,23 @@ import {
 } from "@/components/ui/sidebar";
 
 export function AppSidebar() {
+  const router = useRouter();
+  const { data: session } = authClient.useSession();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const user = session?.user;
+  const displayName = user?.name?.trim() || user?.email || "Пользователь";
+
+  async function handleSignOut() {
+    setIsSigningOut(true);
+    try {
+      await authClient.signOut();
+      router.replace("/login");
+      router.refresh();
+    } finally {
+      setIsSigningOut(false);
+    }
+  }
+
   return (
     <Sidebar collapsible="icon" variant="inset">
       <SidebarHeader className="p-2">
@@ -42,15 +63,17 @@ export function AppSidebar() {
           <span className="flex size-8 items-center justify-center rounded-lg bg-muted"><CircleHelp className="size-4 text-muted-foreground" /></span>
           <div><p className="text-sm font-medium">Нужна помощь?</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Обратитесь к администратору аптеки.</p></div>
         </Card>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Рабочий аккаунт">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-xs font-semibold">С</span>
-              <span className="flex min-w-0 flex-col"><span className="truncate font-medium">Сотрудник аптеки</span><span className="truncate text-xs text-muted-foreground">Рабочий аккаунт</span></span>
-              <Warehouse className="ml-auto" />
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <div className="flex min-w-0 items-center gap-2 rounded-lg p-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-xs font-semibold" aria-hidden="true">{displayName.slice(0, 1).toLocaleUpperCase()}</span>
+          <span className="flex min-w-0 flex-1 flex-col group-data-[collapsible=icon]:hidden">
+            <span className="truncate text-sm font-medium">{displayName}</span>
+            {user?.email && user.email !== displayName && <span className="truncate text-xs text-muted-foreground">{user.email}</span>}
+          </span>
+          <Button type="button" variant="ghost" size="icon" className="size-8 shrink-0 group-data-[collapsible=icon]:mx-auto" onClick={() => void handleSignOut()} disabled={isSigningOut} aria-label="Выйти из аккаунта" title="Выйти из аккаунта">
+            <LogOut className="size-4" />
+            <span className="sr-only">Выйти из аккаунта</span>
+          </Button>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
