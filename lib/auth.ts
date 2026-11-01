@@ -27,6 +27,13 @@ const userRole = ac.newRole({
 });
 
 export const auth = betterAuth({
+    trustedOrigins: [
+        process.env.BETTER_AUTH_URL,
+        process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
+            : undefined,
+    ].filter((origin): origin is string => Boolean(origin)),
+
     database: prismaAdapter(prisma, {
         provider: "postgresql",
     }),
