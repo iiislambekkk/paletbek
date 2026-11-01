@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ChevronDown, MapPin, Package, Pencil, Search } from "lucide-react";
 import { loadAllProducts } from "../actions";
 import { fuzzyScore } from "./fuzzy-search";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -80,22 +79,22 @@ export default function ProductsPage() {
             Ничего не найдено. Попробуйте изменить запрос.
           </Card>
         )}
-        {query.trim() && visibleProducts[0] && (
-          <Card className="gap-0 overflow-hidden rounded-2xl p-0 shadow-none">
+        {visibleProducts.map((product) => (
+          <Card key={product.id} className="gap-0 overflow-hidden rounded-2xl p-0 shadow-none">
             <div className="flex items-start gap-3 p-4 pb-3">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Package className="size-5" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="break-words text-lg font-semibold leading-snug">{visibleProducts[0].name}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Серий: {visibleProducts[0].series.length}</p>
+                <p className="break-words text-lg font-semibold leading-snug">{product.name}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Серий: {product.series.length}</p>
               </div>
-              <Link href={`/products/${visibleProducts[0].id}`} aria-label={`Редактировать ${visibleProducts[0].name}`} className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground transition-colors hover:bg-accent">
+              <Link href={`/products/${product.id}`} aria-label={`Редактировать ${product.name}`} className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground transition-colors hover:bg-accent">
                 <Pencil className="size-4" />
               </Link>
             </div>
             <div className="space-y-1 px-3 pb-3">
-              {visibleProducts[0].series.map((series) => (
+              {product.series.map((series) => (
                 <Collapsible key={series.id} className="group rounded-xl bg-muted/60">
                   <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
                     <span className="min-w-0 flex-1 break-words font-medium">{series.name}</span>
@@ -117,28 +116,6 @@ export default function ProductsPage() {
               ))}
             </div>
           </Card>
-        )}
-        {visibleProducts.slice(query.trim() ? 1 : 0).map((product) => (
-          <div key={product.id} className="block">
-            <Card className="flex-row items-center gap-3 rounded-2xl p-4 shadow-none transition-colors hover:bg-accent">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                <Package className="size-5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block font-medium">{product.name}</span>
-                <span className="mt-1 flex flex-wrap gap-1.5">
-                  {product.series.map((series) => (
-                    <Badge key={series.id} variant="secondary" className="font-normal">
-                      {series.name}
-                    </Badge>
-                  ))}
-                </span>
-              </span>
-              <Link href={`/products/${product.id}`} aria-label={`Редактировать ${product.name}`} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground">
-                <Pencil className="size-4" />
-              </Link>
-            </Card>
-          </div>
         ))}
       </div>
     </main>
