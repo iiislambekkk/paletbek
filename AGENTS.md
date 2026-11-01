@@ -70,6 +70,23 @@ Stack: Next.js, TypeScript, Prisma, PostgreSQL, Better Auth, shadcn/ui, Tailwind
 - Preserve creative freedom in architecture, UX, and implementation.
 - Keep tool usage, file reads, and output concise to conserve tokens.
 
+## Code Readability
+
+Write clean, human-readable, and maintainable code.
+
+- Prioritize readability and clarity over brevity or clever solutions.
+- Use descriptive, meaningful names for variables, functions, and components.
+- Format code consistently with proper indentation, spacing, and line breaks.
+- Avoid deeply nested logic, overly complex expressions, and unnecessary abstractions.
+- Break complex logic into small, logically organized functions.
+- Avoid one-liners when a multi-line version is easier to understand.
+- Keep related logic together and separate unrelated responsibilities.
+- Prefer explicit, straightforward implementations over compact or clever syntax.
+- Add comments only when they explain **why** something is done, not **what** the code does.
+- Follow the project's existing conventions and formatting rules.
+
+**Code should be optimized for human comprehension, not for minimizing line count.**
+
 ## Communication
 
 - Respond in Russian.

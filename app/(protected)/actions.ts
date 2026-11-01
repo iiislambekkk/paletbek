@@ -60,6 +60,35 @@ export async function searchProducts(query: string) {
   return products.map(serializeProduct);
 }
 
+export async function loadAllProducts() {
+  await requireSession();
+  const products = await prisma.product.findMany({
+    select: productSelect,
+    orderBy: { name: "asc" },
+  });
+  return products.map(serializeProduct);
+}
+
+export async function loadProduct(id: string) {
+  await requireSession();
+  const product = await prisma.product.findUnique({
+    where: { id },
+    select: productSelect,
+  });
+  if (!product) return null;
+  const serialized = serializeProduct(product);
+  const pallets = await prisma.pallet.findMany({
+    where: { name: { in: serialized.locations } },
+    select: { id: true, name: true },
+  });
+  return { ...serialized, pallets };
+}
+
+export async function loadPalletOptions() {
+  await requireSession();
+  return prisma.pallet.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
+}
+
 type SeriesInput = { name: string; palletIds: string[] };
 
 function normalizeSeries(seriesInput: SeriesInput[]) {
@@ -134,12 +163,40 @@ export async function searchProductsForPallet(query: string) {
     where: normalizedQuery ? { OR: [{ name: { contains: normalizedQuery, mode: "insensitive" } }, { series: { some: { name: { contains: normalizedQuery, mode: "insensitive" } } } }] } : {},
     select: { id: true, name: true, series: { select: { id: true, name: true }, orderBy: { name: "asc" } } }, orderBy: { name: "asc" }, take: 50,
   });
-  return products.flatMap(({ id, name, series }) => series.map((entry) => ({ ...entry, productId: id, productName: name })));
+  return products.flatMap(({ id, name, series }) => series.length
+    ? series.map((entry) => ({ ...entry, productId: id, productName: name }))
+    : [{ id: "", name: "", productId: id, productName: name }]);
 }
 
 export async function addSeriesToPallet(palletId: string, seriesId: string) {
   await requireSession();
   await prisma.palletProductSeries.upsert({ where: { seriesId_palletId: { seriesId, palletId } }, create: { seriesId, palletId }, update: {} });
+}
+
+export async function createSeriesOnPallet(productId: string, palletId: string, nameInput: string) {
+  await requireSession();
+  const name = nameInput.trim();
+  if (!name) throw new Error("Укажите название серии.");
+  const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
+  if (!product) throw new Error("Товар не найден.");
+  const existing = await prisma.productSeries.findMany({ where: { productId }, select: { name: true } });
+  if (existing.some((series) => series.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+    throw new Error("Такая серия уже есть у товара. Выберите её из списка.");
+  }
+  return prisma.productSeries.create({ data: { productId, name, locations: { create: { palletId } } }, select: { id: true } });
+}
+
+export async function renameProductSeries(seriesId: string, nameInput: string) {
+  await requireSession();
+  const name = nameInput.trim();
+  if (!name) throw new Error("Укажите название серии.");
+  const series = await prisma.productSeries.findUnique({ where: { id: seriesId }, select: { productId: true } });
+  if (!series) throw new Error("Серия не найдена.");
+  const existing = await prisma.productSeries.findMany({ where: { productId: series.productId }, select: { id: true, name: true } });
+  if (existing.some((entry) => entry.id !== seriesId && entry.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+    throw new Error("Такая серия уже есть у товара.");
+  }
+  await prisma.productSeries.update({ where: { id: seriesId }, data: { name } });
 }
 
 export async function removeSeriesFromPallet(palletId: string, seriesId: string) {
