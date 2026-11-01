@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { rememberViewed } from "@/lib/recently-viewed";
 import { ArrowLeft, Boxes, Check, MapPin, Package, Pencil, Plus, Trash2, Warehouse } from "lucide-react";
@@ -11,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { addSeriesToPallet, createSeriesOnPallet, loadPalletOptions, loadProduct, removeSeriesFromPallet, renameProductSeries } from "../../actions";
+import { addSeriesToPallet, createSeriesOnPallet, deleteProduct, deleteProductSeries, loadPalletOptions, loadProduct, removeSeriesFromPallet, renameProductSeries } from "../../actions";
 
 type Product = NonNullable<Awaited<ReturnType<typeof loadProduct>>>;
 type Pallet = Awaited<ReturnType<typeof loadPalletOptions>>[number];
@@ -19,7 +20,10 @@ type Series = Product["series"][number];
 const addressPattern = /^P-(\d+)-(\d+)-(\d+)\/(\d+)$/;
 
 export function ProductDetails({ initialProduct }: { initialProduct: Product }) {
+  const router = useRouter();
   const [product, setProduct] = useState(initialProduct);
+  const [seriesToDelete, setSeriesToDelete] = useState<Series | null>(null);
+  const [deleteProductOpen, setDeleteProductOpen] = useState(false);
   useEffect(() => {
     rememberViewed("products", { id: product.id, name: product.name });
   }, [product.id, product.name]);
@@ -68,6 +72,20 @@ export function ProductDetails({ initialProduct }: { initialProduct: Product }) 
     }
   }
 
+  async function confirmProductDeletion() {
+    setBusy(true);
+    setError("");
+    try {
+      await deleteProduct(product.id);
+      router.push("/products");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Не удалось удалить товар.");
+    } finally {
+      setBusy(false);
+      setDeleteProductOpen(false);
+    }
+  }
+
   function openPicker(series: Series) {
     setCreatingSeries(false);
     setSelectedSeries(series);
@@ -105,13 +123,16 @@ export function ProductDetails({ initialProduct }: { initialProduct: Product }) 
   return <main className="mx-auto w-full max-w-4xl px-4 pb-24 pt-6 sm:px-6 lg:px-10">
     <Button variant="ghost" render={<Link href="/products" />} className="mb-5 -ml-3"><ArrowLeft className="size-4" />Все товары</Button>
     <div className="flex items-start gap-3"><span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Package className="size-6" /></span><div className="min-w-0"><h1 className="break-words text-2xl font-semibold tracking-tight">{product.name}</h1><p className="mt-1 text-sm text-muted-foreground">Серии и их расположение на палетах</p></div></div>
+    <Button type="button" variant="outline" className="mt-5 text-destructive" onClick={() => setDeleteProductOpen(true)}><Trash2 className="size-4" />Удалить товар</Button>
     {error && !selectedSeries && <p role="alert" className="mt-5 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
     {notice && !selectedSeries && <p role="status" className="mt-5 rounded-xl bg-primary/10 p-3 text-sm">{notice}</p>}
     <div className="mt-8 flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Серии товара</h2><p className="text-sm text-muted-foreground">{product.series.length} серий</p></div><Button variant="outline" onClick={() => { setSelectedSeries(null); setCreatingSeries(true); setRow(""); setLevel(""); setSection(""); setNotice(""); }}><Plus className="size-4" />Новая серия</Button></div>
-    <div className="mt-4 space-y-4">{product.series.map((series) => <Card key={series.id} className="gap-4 rounded-2xl p-4 shadow-none"><div className="flex items-center gap-2"><Badge variant="secondary" className="min-w-0 max-w-full truncate">Серия {series.name}</Badge><div className="ml-auto flex shrink-0 gap-1"><Button type="button" variant="ghost" size="icon" aria-label={`Изменить серию ${series.name}`} title="Изменить серию" onClick={() => { setEditingSeries(series); setEditedName(series.name); }}><Pencil className="size-4" /></Button></div></div>
+    <div className="mt-4 space-y-4">{product.series.map((series) => <Card key={series.id} className="gap-4 rounded-2xl p-4 shadow-none"><div className="flex items-center gap-2"><Badge variant="secondary" className="min-w-0 max-w-full truncate">Серия {series.name}</Badge><div className="ml-auto flex shrink-0 gap-1"><Button type="button" variant="ghost" size="icon" aria-label={`Изменить серию ${series.name}`} title="Изменить серию" onClick={() => { setEditingSeries(series); setEditedName(series.name); }}><Pencil className="size-4" /></Button><Button type="button" variant="ghost" size="icon" aria-label={`Удалить серию ${series.name}`} title="Удалить серию" onClick={() => setSeriesToDelete(series)}><Trash2 className="size-4 text-destructive" /></Button></div></div>
       {editingSeries?.id === series.id && <form className="flex flex-wrap gap-2 rounded-xl bg-muted/50 p-3" onSubmit={(event) => { event.preventDefault(); void perform(() => renameProductSeries(series.id, editedName), "Название серии изменено."); }}><Input value={editedName} onChange={(event) => setEditedName(event.target.value)} aria-label="Название серии" className="min-w-36 flex-1" required /><Button type="submit" disabled={busy}>Сохранить</Button><Button type="button" variant="ghost" onClick={() => setEditingSeries(null)}>Отмена</Button></form>}
       <div className="flex flex-wrap gap-2">{series.locations.map((name) => { const pallet = product.pallets.find((entry) => entry.name === name); return <div key={name} className="flex min-h-11 items-center rounded-xl border bg-card pl-3"><Link href={pallet ? `/pallets/${pallet.id}` : "/pallets"} className="flex items-center gap-2 font-mono text-sm font-medium hover:text-primary"><MapPin className="size-4 text-primary" />{name}</Link>{pallet && <Button type="button" variant="ghost" size="icon-sm" aria-label={`Убрать серию ${series.name} с палеты ${name}`} title="Убрать с палеты" onClick={() => setSeriesToRemove({ series, pallet })} className="ml-1 text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></Button>}</div>; })}{!series.locations.length && <p className="text-sm text-muted-foreground">Пока нет ни на одной палете</p>}</div>
       <Button type="button" variant="outline" onClick={() => openPicker(series)} className="h-11 w-full rounded-xl sm:w-fit"><Plus className="size-4" />Добавить на палету</Button></Card>)}</div>
+    <AlertDialog open={seriesToDelete !== null} onOpenChange={(open) => { if (!open && !busy) setSeriesToDelete(null); }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Удалить серию?</AlertDialogTitle><AlertDialogDescription>Серия {seriesToDelete?.name} и все её расположения на палетах будут удалены.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={busy}>Отмена</AlertDialogCancel><AlertDialogAction variant="destructive" disabled={busy} onClick={() => { if (seriesToDelete) { void perform(() => deleteProductSeries(seriesToDelete.id), "Серия удалена."); setSeriesToDelete(null); } }}>Удалить серию</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    <AlertDialog open={deleteProductOpen} onOpenChange={(open) => { if (!busy) setDeleteProductOpen(open); }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Удалить товар?</AlertDialogTitle><AlertDialogDescription>Товар {product.name}, все его серии и расположения на палетах будут удалены без возможности восстановления.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={busy}>Отмена</AlertDialogCancel><AlertDialogAction variant="destructive" disabled={busy} onClick={() => void confirmProductDeletion()}>Удалить товар</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     <AlertDialog open={seriesToRemove !== null} onOpenChange={(open) => { if (!open) setSeriesToRemove(null); }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Убрать серию с палеты?</AlertDialogTitle><AlertDialogDescription>Серия {seriesToRemove?.series.name} товара {product.name} будет убрана с палеты {seriesToRemove?.pallet.name}. В каталоге серия останется.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Отмена</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => { if (seriesToRemove) void perform(() => removeSeriesFromPallet(seriesToRemove.pallet.id, seriesToRemove.series.id), "Серия убрана с палеты."); setSeriesToRemove(null); }}>Убрать</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     {mobile ? <Drawer open={selectedSeries !== null || creatingSeries} onOpenChange={(open) => { if (!open) { setSelectedSeries(null); setCreatingSeries(false); } }}><DrawerContent className="max-h-[90dvh]"><DrawerHeader className="sr-only"><DrawerTitle>Выбор палеты</DrawerTitle></DrawerHeader>{pickerContent}</DrawerContent></Drawer> : <Dialog open={selectedSeries !== null || creatingSeries} onOpenChange={(open) => { if (!open) { setSelectedSeries(null); setCreatingSeries(false); } }}><DialogContent showCloseButton={false} className="flex h-[min(680px,85dvh)] max-w-xl flex-col overflow-hidden p-0"><DialogHeader className="sr-only"><DialogTitle>Выбор палеты</DialogTitle><DialogDescription>Выберите ряд, уровень, секцию и палету.</DialogDescription></DialogHeader>{pickerContent}</DialogContent></Dialog>}
   </main>;

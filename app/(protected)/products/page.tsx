@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Package, Search } from "lucide-react";
+import { ChevronDown, MapPin, Package, Pencil, Search } from "lucide-react";
 import { loadAllProducts } from "../actions";
 import { fuzzyScore } from "./fuzzy-search";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 type Product = Awaited<ReturnType<typeof loadAllProducts>>[number];
 
@@ -79,8 +80,46 @@ export default function ProductsPage() {
             Ничего не найдено. Попробуйте изменить запрос.
           </Card>
         )}
-        {visibleProducts.map((product) => (
-          <Link key={product.id} href={`/products/${product.id}`} className="block">
+        {query.trim() && visibleProducts[0] && (
+          <Card className="gap-0 overflow-hidden rounded-2xl p-0 shadow-none">
+            <div className="flex items-start gap-3 p-4 pb-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Package className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-lg font-semibold leading-snug">{visibleProducts[0].name}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Серий: {visibleProducts[0].series.length}</p>
+              </div>
+              <Link href={`/products/${visibleProducts[0].id}`} aria-label={`Редактировать ${visibleProducts[0].name}`} className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground transition-colors hover:bg-accent">
+                <Pencil className="size-4" />
+              </Link>
+            </div>
+            <div className="space-y-1 px-3 pb-3">
+              {visibleProducts[0].series.map((series) => (
+                <Collapsible key={series.id} className="group rounded-xl bg-muted/60">
+                  <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                    <span className="min-w-0 flex-1 break-words font-medium">{series.name}</span>
+                    <span className="text-xs text-muted-foreground">{series.locations.length} палет</span>
+                    <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="px-4 pb-4">
+                    {series.locations.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {series.locations.map((location) => (
+                          <span key={location} className="inline-flex items-center gap-1.5 rounded-lg bg-background px-3 py-2 font-mono text-sm font-medium text-foreground">
+                            <MapPin className="size-3.5 text-primary" />{location}
+                          </span>
+                        ))}
+                      </div>
+                    ) : <p className="text-sm text-muted-foreground">Палеты не указаны</p>}
+                  </CollapsibleContent>
+                </Collapsible>
+              ))}
+            </div>
+          </Card>
+        )}
+        {visibleProducts.slice(query.trim() ? 1 : 0).map((product) => (
+          <div key={product.id} className="block">
             <Card className="flex-row items-center gap-3 rounded-2xl p-4 shadow-none transition-colors hover:bg-accent">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                 <Package className="size-5" />
@@ -95,9 +134,11 @@ export default function ProductsPage() {
                   ))}
                 </span>
               </span>
-              <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+              <Link href={`/products/${product.id}`} aria-label={`Редактировать ${product.name}`} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground">
+                <Pencil className="size-4" />
+              </Link>
             </Card>
-          </Link>
+          </div>
         ))}
       </div>
     </main>

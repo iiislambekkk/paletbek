@@ -199,6 +199,12 @@ export async function renameProductSeries(seriesId: string, nameInput: string) {
   await prisma.productSeries.update({ where: { id: seriesId }, data: { name } });
 }
 
+export async function deleteProductSeries(seriesId: string) {
+  await requireSession();
+  if (!seriesId) throw new Error("Не указана серия для удаления.");
+  await prisma.productSeries.delete({ where: { id: seriesId } });
+}
+
 export async function removeSeriesFromPallet(palletId: string, seriesId: string) {
   await requireSession();
   await prisma.palletProductSeries.deleteMany({ where: { seriesId, palletId } });
